@@ -50,6 +50,7 @@ da_scala_library(
         "//libs-scala/concurrent",
         "//libs-scala/contextualized-logging",
         "//libs-scala/resources",
+        "//libs-scala/resources-akka",
         "//libs-scala/timer-utils",
         "@maven//:com_github_ghik_silencer_lib_2_12_11",
         "@maven//:com_google_guava_guava",
