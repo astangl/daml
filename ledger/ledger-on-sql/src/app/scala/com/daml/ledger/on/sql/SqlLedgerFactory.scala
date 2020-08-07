@@ -16,14 +16,12 @@ import com.daml.ledger.participant.state.kvutils.app.{
 }
 import com.daml.ledger.participant.state.kvutils.caching._
 import com.daml.ledger.participant.state.v1.SeedService
-import com.daml.ledger.resources.ResourceOwner
+import com.daml.ledger.resources.{Context, ResourceOwner}
 import com.daml.lf.engine.Engine
 import com.daml.logging.LoggingContext
 import com.daml.platform.configuration.LedgerConfiguration
 import com.daml.resources.Resource
 import scopt.OptionParser
-
-import scala.concurrent.ExecutionContext
 
 object SqlLedgerFactory extends LedgerFactory[ReadWriteService, ExtraConfig] {
   override val defaultExtraConfig: ExtraConfig = ExtraConfig(
@@ -61,9 +59,7 @@ object SqlLedgerFactory extends LedgerFactory[ReadWriteService, ExtraConfig] {
       engine: Engine,
   )(implicit loggingContext: LoggingContext)
       extends ResourceOwner[KeyValueParticipantState] {
-    override def acquire()(
-        implicit executionContext: ExecutionContext
-    ): Resource[KeyValueParticipantState] = {
+    override def acquire()(implicit context: Context): Resource[KeyValueParticipantState] = {
       val jdbcUrl = config.extra.jdbcUrl.getOrElse {
         throw new IllegalStateException("No JDBC URL provided.")
       }

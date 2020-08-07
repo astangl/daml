@@ -14,7 +14,7 @@ import com.daml.grpc.adapter.server.akka.ServerAdapter
 import com.daml.grpc.adapter.utils.implementations.AkkaImplementation
 import com.daml.grpc.sampleservice.Responding
 import com.daml.ledger.api.testing.utils.AkkaBeforeAndAfterAll
-import com.daml.ledger.resources.ResourceOwner
+import com.daml.ledger.resources.{Context, ResourceOwner}
 import com.daml.metrics.Metrics
 import com.daml.platform.apiserver.MetricsInterceptorSpec._
 import com.daml.platform.apiserver.services.GrpcClientResource
@@ -41,6 +41,8 @@ final class MetricsInterceptorSpec
 
   implicit override val patienceConfig: PatienceConfig =
     PatienceConfig(timeout = scaled(Span(1, Second)))
+
+  private implicit val context: Context = Context(executionContext)
 
   behavior of "MetricsInterceptor"
 
@@ -109,7 +111,7 @@ object MetricsInterceptorSpec {
       service: BindableService,
   ): ResourceOwner[Server] =
     new ResourceOwner[Server] {
-      def acquire()(implicit executionContext: ExecutionContext): Resource[Server] =
+      def acquire()(implicit context: Context): Resource[Server] =
         Resource(Future {
           val server =
             NettyServerBuilder

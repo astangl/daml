@@ -4,13 +4,13 @@
 package com.daml.platform.sandboxnext
 
 import com.daml.ledger.api.testing.utils.{OwnedResource, Resource, SuiteResource}
+import com.daml.ledger.resources.Context
 import com.daml.platform.apiserver.services.GrpcClientResource
 import com.daml.platform.sandbox.{AbstractSandboxFixture, SandboxBackend}
 import com.daml.ports.Port
 import io.grpc.Channel
 import org.scalatest.Suite
 
-import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.DurationInt
 
 trait SandboxNextFixture extends AbstractSandboxFixture with SuiteResource[(Port, Channel)] {
@@ -21,8 +21,8 @@ trait SandboxNextFixture extends AbstractSandboxFixture with SuiteResource[(Port
   override protected def channel: Channel = suiteResource.value._2
 
   override protected lazy val suiteResource: Resource[(Port, Channel)] = {
-    implicit val ec: ExecutionContext = system.dispatcher
-    new OwnedResource[(Port, Channel)](
+    implicit val context: Context = Context(system.dispatcher)
+    new OwnedResource[Context, (Port, Channel)](
       for {
         // We must provide a random database if none is provided.
         // The default is to always use the same index database URL, which means that tests can

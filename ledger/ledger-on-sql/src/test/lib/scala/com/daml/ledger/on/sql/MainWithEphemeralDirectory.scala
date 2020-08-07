@@ -13,19 +13,17 @@ import com.daml.ledger.participant.state.kvutils.app.{
   ReadWriteService,
   Runner
 }
-import com.daml.ledger.resources.ResourceOwner
+import com.daml.ledger.resources.{Context, ResourceOwner}
 import com.daml.lf.engine.Engine
 import com.daml.logging.LoggingContext
 import com.daml.resources.{ProgramResource, Resource}
 import scopt.OptionParser
 
-import scala.concurrent.ExecutionContext
-
 object MainWithEphemeralDirectory {
   private val DirectoryPattern = "%DIR"
 
   def main(args: Array[String]): Unit = {
-    new ProgramResource(new Runner("SQL Ledger", TestLedgerFactory).owner(args)).run(identity)
+    new ProgramResource(new Runner("SQL Ledger", TestLedgerFactory).owner(args)).run(Context.apply)
   }
 
   object TestLedgerFactory extends LedgerFactory[ReadWriteService, ExtraConfig] {
@@ -53,9 +51,7 @@ object MainWithEphemeralDirectory {
         engine: Engine,
     )(implicit materializer: Materializer, loggingContext: LoggingContext)
         extends ResourceOwner[ReadWriteService] {
-      override def acquire()(
-          implicit executionContext: ExecutionContext
-      ): Resource[ReadWriteService] = {
+      override def acquire()(implicit context: Context): Resource[ReadWriteService] = {
         val directory = Files.createTempDirectory("ledger-on-sql-ephemeral-")
         val jdbcUrl = config.extra.jdbcUrl.map(_.replace(DirectoryPattern, directory.toString))
         SqlLedgerFactory

@@ -11,10 +11,9 @@ import com.daml.ledger.api.testing.utils.{
   Resource,
   SuiteResource
 }
+import com.daml.ledger.resources.Context
 import com.daml.ports.Port
 import org.scalatest.Suite
-
-import scala.concurrent.ExecutionContext
 
 trait TestFixture extends AkkaBeforeAndAfterAll with SuiteResource[(ServerBinding, ServerBinding)] {
   self: Suite =>
@@ -22,8 +21,8 @@ trait TestFixture extends AkkaBeforeAndAfterAll with SuiteResource[(ServerBindin
   protected val applicationId: String = "test-application"
   protected val jwtSecret: String = "secret"
   override protected lazy val suiteResource: Resource[(ServerBinding, ServerBinding)] = {
-    implicit val ec: ExecutionContext = system.dispatcher
-    new OwnedResource[(ServerBinding, ServerBinding)](
+    implicit val context: Context = Context(system.dispatcher)
+    new OwnedResource[Context, (ServerBinding, ServerBinding)](
       for {
         server <- Resources.authServer(
           Config(

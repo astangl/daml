@@ -4,6 +4,7 @@
 package com.daml.ledger.on.memory
 
 import com.daml.ledger.participant.state.kvutils.app.Config
+import com.daml.ledger.resources.Context
 import com.daml.resources.ProgramResource
 
 object Main {
@@ -17,6 +18,6 @@ object Main {
       )
       owner <- Owner(config)
     } yield owner
-    new ProgramResource(resource).run(identity)
+    new ProgramResource(resource).run(Context.apply)
   }
 }

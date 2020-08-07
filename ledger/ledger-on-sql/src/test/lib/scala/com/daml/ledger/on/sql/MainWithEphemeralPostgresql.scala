@@ -4,6 +4,7 @@
 package com.daml.ledger.on.sql
 
 import com.daml.ledger.participant.state.kvutils.app.{Config, Runner}
+import com.daml.ledger.resources.Context
 import com.daml.resources.ProgramResource
 import com.daml.testing.postgresql.PostgresAround
 
@@ -21,6 +22,6 @@ object MainWithEphemeralPostgresql extends PostgresAround {
       participants = originalConfig.participants.map(_.copy(serverJdbcUrl = database.url)),
       extra = ExtraConfig(jdbcUrl = Some(database.url)),
     )
-    new ProgramResource(new Runner("SQL Ledger", SqlLedgerFactory).owner(config)).run(identity)
+    new ProgramResource(new Runner("SQL Ledger", SqlLedgerFactory).owner(config)).run(Context.apply)
   }
 }

@@ -3,12 +3,15 @@
 
 package com.daml
 
+import com.daml.ledger.resources.Context
 import org.scalatest.{AsyncFlatSpec, Matchers}
 import stakeholders.{ExplicitObservers, ImplicitObservers, MixedObservers, OnlySignatories}
 
 class StakeholdersTest extends AsyncFlatSpec with Matchers {
 
   import TestUtil._
+
+  private implicit val context: Context = Context(executionContext)
 
   val onlySignatories = new OnlySignatories(Alice)
   val implicitObservers = new ImplicitObservers(Alice, Bob)

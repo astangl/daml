@@ -13,6 +13,7 @@ import com.daml.ledger.on.memory.{ExtraConfig, Owner}
 import com.daml.ledger.participant.state.kvutils.app.ParticipantConfig
 import com.daml.ledger.participant.state.kvutils.{app => kvutils}
 import com.daml.ledger.participant.state.v1
+import com.daml.ledger.resources.Context
 import com.daml.lf.engine.script._
 import com.daml.ports.Port
 import org.scalatest.Suite
@@ -62,8 +63,8 @@ trait MultiParticipantFixture
     managementServiceTimeout = ParticipantConfig.defaultManagementServiceTimeout,
   )
   override protected lazy val suiteResource = {
-    implicit val ec: ExecutionContext = system.dispatcher
-    new OwnedResource[(Port, Port)](
+    implicit val context: Context = Context(system.dispatcher)
+    new OwnedResource[Context, (Port, Port)](
       for {
         _ <- Owner(
           kvutils.Config
