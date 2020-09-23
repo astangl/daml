@@ -226,7 +226,7 @@ class Engine(val config: EngineConfig = EngineConfig.Stable) {
   }
 
   private def loadPackages(pkgIds: List[PackageId]): Result[Unit] =
-    pkgIds.dropWhile(compiledPackages.packages.isDefinedAt) match {
+    pkgIds.dropWhile(compiledPackages.signatures.isDefinedAt) match {
       case pkgId :: rest =>
         ResultNeedPackage(pkgId, {
           case Some(pkg) =>

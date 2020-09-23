@@ -15,7 +15,7 @@ private[validation] object DependencyVersion {
 
     for {
       depPkgId <- pkg.directDeps
-      depPkg = world.lookupPackage(NoContext, depPkgId)
+      depPkg = world.lookupPackageInterface(NoContext, depPkgId)
       if pkg.languageVersion precedes depPkg.languageVersion
     } throw EModuleVersionDependencies(
       pkgId,

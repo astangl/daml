@@ -230,7 +230,7 @@ private[validation] object Typing {
   }
 
   def checkModule(world: World, pkgId: PackageId, mod: Module): Unit = {
-    val languageVersion = world.lookupPackage(NoContext, pkgId).languageVersion
+    val languageVersion = world.lookupPackageInterface(NoContext, pkgId).languageVersion
     mod.definitions.foreach {
       case (dfnName, DDataType(_, params, cons)) =>
         val env =
@@ -391,7 +391,7 @@ private[validation] object Typing {
         throw EIllegalKeyExpression(ctx, e)
     }
 
-    private def checkTypConApp(app: TypeConApp): DataCons = app match {
+    private def checkTypConApp(app: TypeConApp): AbstractDataCons[_] = app match {
       case TypeConApp(tyCon, tArgs) =>
         val DDataType(_, tparams, dataCons) = lookupDataType(ctx, tyCon)
         if (tparams.length != tArgs.length) throw ETypeConAppWrongArity(ctx, tparams.length, app)
@@ -405,7 +405,7 @@ private[validation] object Typing {
         throw EKindMismatch(ctx, foundKind = typKind, expectedKind = kind)
     }
 
-    private def kindOfDataType(defDataType: DDataType): Kind =
+    private def kindOfDataType(defDataType: AbstractDDataType[_]): Kind =
       defDataType.params.reverse.foldLeft[Kind](KStar) { case (acc, (_, k)) => KArrow(k, acc) }
 
     def kindOf(typ0: Type): Kind = typ0 match {
@@ -466,7 +466,7 @@ private[validation] object Typing {
 
     private def checkRecCon(typ: TypeConApp, recordExpr: ImmArray[(FieldName, Expr)]): Unit =
       checkTypConApp(typ) match {
-        case DataRecord(recordType, _) =>
+        case AbstractDataRecord(recordType, _) =>
           val (exprFieldNames, fieldExprs) = recordExpr.unzip
           val (typeFieldNames, fieldTypes) = recordType.unzip
           if (exprFieldNames != typeFieldNames) throw EFieldMismatch(ctx, typ, recordExpr)
@@ -495,7 +495,7 @@ private[validation] object Typing {
 
     private def typeOfRecProj(typ0: TypeConApp, field: FieldName, record: Expr): Type =
       checkTypConApp(typ0) match {
-        case DataRecord(recordType, _) =>
+        case AbstractDataRecord(recordType, _) =>
           val fieldType = recordType.lookup(field, EUnknownField(ctx, field))
           checkExpr(record, typeConAppToType(typ0))
           fieldType
@@ -505,7 +505,7 @@ private[validation] object Typing {
 
     private def typeOfRecUpd(typ0: TypeConApp, field: FieldName, record: Expr, update: Expr): Type =
       checkTypConApp(typ0) match {
-        case DataRecord(recordType, _) =>
+        case AbstractDataRecord(recordType, _) =>
           val typ1 = typeConAppToType(typ0)
           checkExpr(record, typ1)
           checkExpr(update, recordType.lookup(field, EUnknownField(ctx, field)))

@@ -37,9 +37,12 @@ private[validation] object TypeSubst {
       .map(i => Name.assertFromString("$freshVar" + i.toString))
       .filterNot(fv.contains)(0)
 
-  def substitute(subst: Map[TypeVarName, Type], dataCons: DataCons): DataCons = dataCons match {
-    case DataRecord(fields, _) =>
-      DataRecord(fields.transform { (_, x) =>
+  def substitute[E](
+      subst: Map[TypeVarName, Type],
+      dataCons: AbstractDataCons[E]
+  ): AbstractDataCons[E] = dataCons match {
+    case AbstractDataRecord(fields, _) =>
+      AbstractDataRecord(fields.transform { (_, x) =>
         substitute(subst, x)
       }, None)
     case DataVariant(variants) =>

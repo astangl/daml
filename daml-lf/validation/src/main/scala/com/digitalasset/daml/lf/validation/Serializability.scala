@@ -44,7 +44,7 @@ private[validation] object Serializability {
           tArg match {
             case TTyCon(tCon) => {
               lookupDataType(ctx, tCon) match {
-                case DDataType(_, _, DataRecord(_, Some(_))) =>
+                case AbstractDDataType(_, _, AbstractDataRecord(_, Some(_))) =>
                   ()
                 case _ =>
                   unserializable(URContractId)
@@ -61,7 +61,7 @@ private[validation] object Serializability {
       case TSynApp(syn, _) => unserializable(URTypeSyn(syn))
       case TTyCon(tycon) =>
         lookupDefinition(ctx, tycon) match {
-          case DDataType(true, _, _) =>
+          case AbstractDDataType(true, _, _) =>
             ()
           case _ =>
             unserializable(URDataType(tycon))
@@ -152,7 +152,7 @@ private[validation] object Serializability {
   }
 
   def checkModule(world: World, pkgId: PackageId, module: Module): Unit = {
-    val version = world.lookupPackage(NoContext, pkgId).languageVersion
+    val version = world.lookupPackageInterface(NoContext, pkgId).languageVersion
     module.definitions.foreach {
       case (defName, DDataType(serializable, params, dataCons)) =>
         val tyCon = TTyCon(Identifier(pkgId, QualifiedName(module.name, defName)))

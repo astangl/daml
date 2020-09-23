@@ -120,4 +120,52 @@ object Util {
       )
   }
 
+  private[this] def toSignature(choice: TemplateChoice): TemplateChoiceSignature =
+    choice match {
+      case TemplateChoice(name, consuming, _, selfBinder, argBinder, returnType, _) =>
+        TemplateChoiceSignature(name, consuming, (), selfBinder, argBinder, returnType, ())
+    }
+
+  private[this] def toSignature(key: TemplateKey): TemplateKeySignature =
+    key match {
+      case TemplateKey(typ, _, _) =>
+        TemplateKeySignature(typ, (), ())
+    }
+
+  private[this] def toSignature(template: Template): TemplateSignature =
+    template match {
+      case Template(param, _, _, _, choices, _, key) =>
+        TemplateSignature(
+          param,
+          (),
+          (),
+          (),
+          choices.transform((_, v) => toSignature(v)),
+          (),
+          key.map(toSignature),
+        )
+    }
+
+  def toSignature(p: Package): PackageSignature = {
+    val moduleInterface = p.modules.transform((_, mod) =>
+      mod.mapDefinitions {
+        case DDataType(serializable, params, cons) =>
+          val consInterface = cons match {
+            case DataRecord(fields, template) =>
+              DataRecordSignature(fields, template.map(toSignature))
+            case variant @ DataVariant(_) => variant
+            case enum @ DataEnum(_) => enum
+          }
+          DDataTypeSignature(serializable, params, consInterface)
+        case DValue(typ, noPartyLiterals, _, isTest) =>
+          DValueSignature(typ, noPartyLiterals, (), isTest)
+        case syn @ DTypeSyn(_, _) =>
+          syn
+    })
+    p.copy(modules = moduleInterface)
+  }
+
+  def toSignatures(pkgs: Map[Ref.PackageId, Package]): Map[Ref.PackageId, PackageSignature] =
+    pkgs.transform((_, v) => toSignature(v))
+
 }

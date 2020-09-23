@@ -126,7 +126,7 @@ object Trigger extends StrictLogging {
     val compiler = compiledPackages.compiler
     for {
       pkg <- compiledPackages
-        .getPackage(triggerId.packageId)
+        .getSignature(triggerId.packageId)
         .toRight(s"Could not find package: ${triggerId.packageId}")
       definition <- pkg.lookupIdentifier(triggerId.qualifiedName)
       expr <- definition match {
@@ -170,8 +170,8 @@ object Trigger extends StrictLogging {
     val machine = Speedy.Machine.fromPureSExpr(compiledPackages, registeredTemplates)
     Machine.stepToValue(machine) match {
       case SVariant(_, "AllInDar", _, _) => {
-        val packages: Seq[(PackageId, Package)] = compiledPackages.packageIds
-          .map(pkgId => (pkgId, compiledPackages.getPackage(pkgId).get))
+        val packages: Seq[(PackageId, PackageSignature)] = compiledPackages.packageIds
+          .map(pkgId => (pkgId, compiledPackages.getSignature(pkgId).get))
           .toSeq
         val templateIds = packages.flatMap({
           case (pkgId, pkg) =>
@@ -180,7 +180,7 @@ object Trigger extends StrictLogging {
                 module.definitions.toList.flatMap({
                   case (entityName, definition) =>
                     definition match {
-                      case DDataType(_, _, DataRecord(_, Some(_))) =>
+                      case DDataTypeSignature(_, _, AbstractDataRecord(_, Some(_))) =>
                         Seq(toApiIdentifier(Identifier(pkgId, QualifiedName(modName, entityName))))
                       case _ => Seq()
                     }

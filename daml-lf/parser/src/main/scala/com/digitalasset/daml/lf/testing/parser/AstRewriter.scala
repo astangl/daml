@@ -21,7 +21,7 @@ private[daml] class AstRewriter(
     pkg.copy(modules = pkg.modules.transform((_, x) => apply(x)))
 
   def apply(module: Module): Module =
-    module.copy(definitions = module.definitions.transform((_, x) => apply(x)))
+    module.mapDefinitions(apply)
 
   def apply(identifier: Identifier): Identifier =
     if (identifierRule.isDefinedAt(identifier))

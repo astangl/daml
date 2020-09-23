@@ -488,67 +488,114 @@ object Ast {
   // Definitions
   //
 
-  sealed abstract class Definition extends Product with Serializable
+  sealed abstract class AbstractDefinition[+E] extends Product with Serializable
 
-  final case class DTypeSyn(params: ImmArray[(TypeVarName, Kind)], typ: Type) extends Definition
-  final case class DDataType(
+  type Definition = AbstractDefinition[Expr]
+  type DefinitionSignature = AbstractDefinition[Unit]
+
+  final case class DTypeSyn(params: ImmArray[(TypeVarName, Kind)], typ: Type)
+      extends AbstractDefinition[Nothing]
+  final case class AbstractDDataType[+E](
       serializable: Boolean,
       params: ImmArray[(TypeVarName, Kind)],
-      cons: DataCons)
-      extends Definition
-  final case class DValue(
+      cons: AbstractDataCons[E],
+  ) extends AbstractDefinition[E]
+  final case class AbstractDValue[E](
       typ: Type,
       noPartyLiterals: Boolean,
-      body: Expr,
+      body: E,
       isTest: Boolean
-  ) extends Definition
+  ) extends AbstractDefinition[E]
+
+  type DValue = AbstractDValue[Expr]
+  val DValue = AbstractDValue
+
+  type DValueSignature = AbstractDValue[Unit]
+  val DValueSignature = AbstractDValue
+
+  type DDataType = AbstractDDataType[Expr]
+  val DDataType = AbstractDDataType
+
+  type DDataTypeSignature = AbstractDDataType[Unit]
+  val DDataTypeSignature = AbstractDDataType
 
   // Data constructor in data type definition.
-  sealed abstract class DataCons extends Product with Serializable
-  final case class DataRecord(fields: ImmArray[(FieldName, Type)], optTemplate: Option[Template])
-      extends DataCons
-  final case class DataVariant(variants: ImmArray[(VariantConName, Type)]) extends DataCons {
+  sealed abstract class AbstractDataCons[+E] extends Product with Serializable
+
+  type DataCons = AbstractDataCons[Expr]
+
+  final case class AbstractDataRecord[E](
+      fields: ImmArray[(FieldName, Type)],
+      optTemplate: Option[AbstractTemplate[E]])
+      extends AbstractDataCons[E]
+
+  final class AbstractDataRecordCompanion[E] {
+    def apply(
+        fields: ImmArray[(FieldName, Type)],
+        optTemplate: Option[AbstractTemplate[E]]): AbstractDataRecord[E] =
+      AbstractDataRecord(fields, optTemplate)
+
+    def unapply(
+        arg: AbstractDataRecord[E],
+    ): Option[(ImmArray[(FieldName, Type)], Option[AbstractTemplate[E]])] =
+      AbstractDataRecord.unapply(arg)
+  }
+
+  type DataRecord = AbstractDataRecord[Expr]
+  val DataRecord = new AbstractDataRecordCompanion[Expr]
+
+  type DataRecordSignature = AbstractDataRecord[Unit]
+  val DataRecordSignature = new AbstractDataRecordCompanion[Unit]
+
+  final case class DataVariant(variants: ImmArray[(VariantConName, Type)])
+      extends AbstractDataCons[Nothing] {
     lazy val constructorRank: Map[VariantConName, Int] =
       variants.iterator.map(_._1).zipWithIndex.toMap
   }
-  final case class DataEnum(constructors: ImmArray[EnumConName]) extends DataCons {
+  final case class DataEnum(constructors: ImmArray[EnumConName]) extends AbstractDataCons[Nothing] {
     lazy val constructorRank: Map[EnumConName, Int] = constructors.iterator.zipWithIndex.toMap
   }
 
-  case class TemplateKey(
+  case class AbstractTemplateKey[E](
       typ: Type,
-      body: Expr,
+      body: E,
       // function from key type to [Party]
-      maintainers: Expr,
+      maintainers: E,
   )
 
-  case class Template private (
+  type TemplateKey = AbstractTemplateKey[Expr]
+  val TemplateKey = AbstractTemplateKey
+
+  type TemplateKeySignature = AbstractTemplateKey[Unit]
+  val TemplateKeySignature = AbstractTemplateKey
+
+  case class AbstractTemplate[E] private[Ast] (
       param: ExprVarName, // Binder for template argument.
-      precond: Expr, // Template creation precondition.
-      signatories: Expr, // Parties agreeing to the contract.
-      agreementText: Expr, // Text the parties agree to.
-      choices: Map[ChoiceName, TemplateChoice], // Choices available in the template.
-      observers: Expr, // Observers of the contract.
-      key: Option[TemplateKey]
-  )
+      precond: E, // Template creation precondition.
+      signatories: E, // Parties agreeing to the contract.
+      agreementText: E, // Text the parties agree to.
+      choices: Map[ChoiceName, AbstractTemplateChoice[E]], // Choices available in the template.
+      observers: E, // Observers of the contract.
+      key: Option[AbstractTemplateKey[E]]
+  ) extends NoCopy
 
-  object Template {
+  final class AbstractTemplateCompanion[E] {
 
     def apply(
         param: ExprVarName,
-        precond: Expr,
-        signatories: Expr,
-        agreementText: Expr,
-        choices: Traversable[(ChoiceName, TemplateChoice)],
-        observers: Expr,
-        key: Option[TemplateKey]
-    ): Template = {
+        precond: E,
+        signatories: E,
+        agreementText: E,
+        choices: Traversable[(ChoiceName, AbstractTemplateChoice[E])],
+        observers: E,
+        key: Option[AbstractTemplateKey[E]]
+    ): AbstractTemplate[E] = {
 
       findDuplicate(choices).foreach { choiceName =>
         throw PackageError(s"collision on choice name $choiceName")
       }
 
-      new Template(
+      new AbstractTemplate[E](
         param,
         precond,
         signatories,
@@ -558,17 +605,52 @@ object Ast {
         key,
       )
     }
+
+    def apply(arg: AbstractTemplate[E]): Option[(
+        ExprVarName,
+        E,
+        E,
+        E,
+        Map[ChoiceName, AbstractTemplateChoice[E]],
+        E,
+        Option[AbstractTemplateKey[E]],
+    )] = AbstractTemplate.unapply(arg)
+
+    def unapply(arg: AbstractTemplate[E]): Option[
+      (
+          ExprVarName,
+          E,
+          E,
+          E,
+          Map[ChoiceName, AbstractTemplateChoice[E]],
+          E,
+          Option[AbstractTemplateKey[E]]
+      )
+    ] =
+      AbstractTemplate.unapply(arg)
   }
 
-  case class TemplateChoice(
+  type Template = AbstractTemplate[Expr]
+  val Template = new AbstractTemplateCompanion[Expr]
+
+  type TemplateSignature = AbstractTemplate[Unit]
+  val TemplateSignature = AbstractTemplate
+
+  case class AbstractTemplateChoice[E](
       name: ChoiceName, // Name of the choice.
       consuming: Boolean, // Flag indicating whether exercising the choice consumes the contract.
-      controllers: Expr, // Parties that can exercise the choice.
+      controllers: E, // Parties that can exercise the choice.
       selfBinder: ExprVarName, // Self ContractId binder.
       argBinder: (ExprVarName, Type), // Choice argument binder.
       returnType: Type, // Return type of the choice follow-up.
-      update: Expr // The choice follow-up.
+      update: E // The choice follow-up.
   )
+
+  type TemplateChoice = AbstractTemplateChoice[Expr]
+  val TemplateChoice = AbstractTemplateChoice
+
+  type TemplateChoiceSignature = AbstractTemplateChoice[Unit]
+  val TemplateChoiceSignature = AbstractTemplateChoice
 
   case class FeatureFlags(
       forbidPartyLiterals: Boolean // If set to true, party literals are not allowed to appear in daml-lf packages.
@@ -595,30 +677,38 @@ object Ast {
   // Modules and packages
   //
 
-  case class Module private (
+  case class AbstractModule[+E] private[Ast] (
       name: ModuleName,
-      definitions: Map[DottedName, Definition],
+      definitions: Map[DottedName, AbstractDefinition[E]],
       featureFlags: FeatureFlags
-  )
+  ) extends NoCopy {
+
+    def mapDefinitions[F](f: AbstractDefinition[E] => AbstractDefinition[F]) =
+      new AbstractModule[F](
+        name,
+        definitions.transform((_, d) => f(d)),
+        featureFlags: FeatureFlags,
+      )
+  }
 
   private def findDuplicate[Key, Value](xs: Traversable[(Key, Value)]) =
     xs.groupBy(_._1).collectFirst { case (key, values) if values.size > 1 => key }
 
-  object Module {
+  final class AbstractModuleCompanion[E] {
 
     def apply(
         name: ModuleName,
-        definitions: Traversable[(DottedName, Definition)],
+        definitions: Traversable[(DottedName, AbstractDefinition[E])],
         featureFlags: FeatureFlags
-    ): Module =
-      Module(name, definitions, List.empty, featureFlags)
+    ): AbstractModule[E] =
+      this(name, definitions, List.empty, featureFlags)
 
     def apply(
         name: ModuleName,
-        definitions: Traversable[(DottedName, Definition)],
-        templates: Traversable[(DottedName, Template)],
+        definitions: Traversable[(DottedName, AbstractDefinition[E])],
+        templates: Traversable[(DottedName, AbstractTemplate[E])],
         featureFlags: FeatureFlags
-    ): Module = {
+    ): AbstractModule[E] = {
 
       findDuplicate(definitions).foreach { defName =>
         throw PackageError(s"Collision on definition name ${defName.toString}")
@@ -633,27 +723,35 @@ object Ast {
       val updatedRecords = templates.map {
         case (templName, template) =>
           defsMap.get(templName) match {
-            case Some(DDataType(serializable, params, DataRecord(fields, _))) =>
-              templName -> DDataType(serializable, params, DataRecord(fields, Some(template)))
+            case Some(DDataType(serializable, params, AbstractDataRecord(fields, _))) =>
+              templName -> DDataType(
+                serializable,
+                params,
+                AbstractDataRecord(fields, Some(template)))
             case _ =>
               throw PackageError(
                 s"Data type definition not found for template ${templName.toString}")
           }
       }
 
-      new Module(name, defsMap ++ updatedRecords, featureFlags)
+      new AbstractModule[E](name, defsMap ++ updatedRecords, featureFlags)
     }
   }
 
+  type Module = AbstractModule[Expr]
+  val Module = new AbstractModuleCompanion[Expr]
+
+  type ModuleSignature = AbstractModule[Unit]
+
   case class PackageMetadata(name: PackageName, version: PackageVersion)
 
-  case class Package(
-      modules: Map[ModuleName, Module],
+  case class AbstractPackage[E](
+      modules: Map[ModuleName, AbstractModule[E]],
       directDeps: Set[PackageId],
       languageVersion: LanguageVersion,
       metadata: Option[PackageMetadata],
   ) {
-    def lookupIdentifier(identifier: QualifiedName): Either[String, Definition] = {
+    def lookupIdentifier(identifier: QualifiedName): Either[String, AbstractDefinition[E]] = {
       this.modules.get(identifier.module) match {
         case None =>
           Left(
@@ -669,21 +767,48 @@ object Ast {
     }
   }
 
-  object Package {
+  sealed class AbstractPackageCompanion[E] {
 
     def apply(
-        modules: Traversable[Module],
+        modules: Traversable[AbstractModule[E]],
         directDeps: Traversable[PackageId],
         languageVersion: LanguageVersion,
         metadata: Option[PackageMetadata],
-    ): Package = {
+    ): AbstractPackage[E] = {
       val modulesWithNames = modules.map(m => m.name -> m)
       findDuplicate(modulesWithNames).foreach { modName =>
         throw PackageError(s"Collision on module name ${modName.toString}")
       }
-      Package(modulesWithNames.toMap, directDeps.toSet, languageVersion, metadata)
+      this(modulesWithNames.toMap, directDeps.toSet, languageVersion, metadata)
     }
+
+    def apply(
+        modules: Map[ModuleName, AbstractModule[E]],
+        directDeps: Set[PackageId],
+        languageVersion: LanguageVersion,
+        metadata: Option[PackageMetadata],
+    ) =
+      AbstractPackage(
+        modules: Map[ModuleName, AbstractModule[E]],
+        directDeps: Set[PackageId],
+        languageVersion: LanguageVersion,
+        metadata: Option[PackageMetadata],
+      )
+
+    def unapply(arg: AbstractPackage[E]): Option[(
+        Map[ModuleName, AbstractModule[E]],
+        Set[PackageId],
+        LanguageVersion,
+        Option[PackageMetadata]
+    )] =
+      AbstractPackage.unapply(arg)
   }
+
+  type Package = AbstractPackage[Expr]
+  val Package = new AbstractPackageCompanion[Expr]
+
+  type PackageSignature = AbstractPackage[Unit]
+  val PackageSignature = new AbstractPackageCompanion[Unit]
 
   val keyFieldName = Name.assertFromString("key")
   val valueFieldName = Name.assertFromString("value")

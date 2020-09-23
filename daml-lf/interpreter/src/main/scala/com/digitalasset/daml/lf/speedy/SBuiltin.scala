@@ -1108,7 +1108,8 @@ private[lf] object SBuiltin {
         machine: Machine,
         onLedger: OnLedger
     ): Unit = {
-      val keyWithMaintainers = extractKeyWithMaintainers(args.get(0))
+      val keyWithMaintainers: Node.KeyWithMaintainers[V[Nothing]] = extractKeyWithMaintainers(
+        args.get(0))
       val mbCoid = args.get(1) match {
         case SOptional(mb) =>
           mb.map {
