@@ -187,6 +187,7 @@ object TransactionBuilder {
       argument: Value,
   ): Exercise =
     Exercise(
+      observers = Set.empty,
       targetCoid = contract.coid,
       templateId = contract.coinst.template,
       choiceId = Ref.ChoiceName.assertFromString(choice),

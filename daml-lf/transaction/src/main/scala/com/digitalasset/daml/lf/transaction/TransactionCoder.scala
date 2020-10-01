@@ -203,7 +203,7 @@ object TransactionCoder {
           nodeBuilder.setFetch(fetchBuilder).build()
         }
 
-      case ne @ NodeExercises(_, _, _, _, _, _, _, _, _, _, _, _, _) =>
+      case ne @ NodeExercises(_, _, _, _, _, _, _, _, _, _, _, _, _, _) =>
         for {
           argValue <- encodeValue(encodeCid, ne.chosenValue)
           retValue <- ne.exerciseResult traverse (v => encodeValue(encodeCid, v))
@@ -424,6 +424,7 @@ object TransactionCoder {
           (
             ni,
             NodeExercises(
+              observers = Set.empty, //NICK, need to come from protoExe
               targetCoid = targetCoid,
               templateId = templateId,
               choiceId = choiceName,
@@ -659,6 +660,7 @@ object TransactionCoder {
             def signatories = signatories_
             def stakeholders = stakeholders_
             def actingParties = actingParties_
+            def observers = Set.empty //NICK -- need to extend proto with observers?
             def consuming = protoExe.getConsuming
           }
         }

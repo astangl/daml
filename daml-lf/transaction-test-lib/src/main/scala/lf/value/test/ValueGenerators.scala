@@ -307,6 +307,7 @@ object ValueGenerators {
       chosenValue <- versionedValueGen
       stakeholders <- genNonEmptyParties
       signatories <- genNonEmptyParties
+      //observers <- genNonEmptyParties //NICK, ok?
       children <- Gen
         .listOf(Arbitrary.arbInt.arbitrary)
         .map(_.map(NodeId(_)))
@@ -316,6 +317,7 @@ object ValueGenerators {
       maintainers <- genNonEmptyParties
     } yield
       NodeExercises(
+        observers = Set.empty, //NICK
         targetCoid,
         templateId,
         choiceId,

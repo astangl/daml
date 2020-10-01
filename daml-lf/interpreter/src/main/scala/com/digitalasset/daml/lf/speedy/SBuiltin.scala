@@ -917,11 +917,12 @@ private[lf] object SBuiltin {
         case v => crash(s"expect optional parties, got: $v")
       }
       val sigs = extractParties(args.get(3))
-      val obs = extractParties(args.get(4))
+      val contractObs = extractParties(args.get(4))
       val ctrls = extractParties(args.get(5))
 
       val mbKey = extractOptionalKeyWithMaintainers(args.get(6))
       val auth = machine.auth
+      val observers: Set[Party] = Set.empty //NICK, caller must pass
 
       onLedger.ptx = onLedger.ptx
         .beginExercises(
@@ -933,8 +934,9 @@ private[lf] object SBuiltin {
           consuming = consuming,
           actingParties = optActors.getOrElse(ctrls),
           signatories = sigs,
-          stakeholders = sigs union obs,
+          stakeholders = sigs union contractObs,
           controllers = ctrls,
+          observers = observers,
           mbKey = mbKey,
           byKey = byKey,
           chosenValue = arg,

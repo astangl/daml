@@ -972,6 +972,7 @@ class EngineTest
       bobView.nodes.size shouldBe 2
       findNodeByIdx(bobView.nodes, 0).getOrElse(fail("node not found")) match {
         case Node.NodeExercises(
+            _,
             coid,
             _,
             choice,
@@ -1549,7 +1550,7 @@ class EngineTest
     "be partially reinterpretable" in {
       val Right((tx, txMeta)) = run(3)
       val ImmArray(_, exeNode1) = tx.transaction.roots
-      val Node.NodeExercises(_, _, _, _, _, _, _, _, _, _, children, _, _) =
+      val Node.NodeExercises(_, _, _, _, _, _, _, _, _, _, _, children, _, _) =
         tx.transaction.nodes(exeNode1)
       val nids = children.toSeq.take(2).toImmArray
 
@@ -1809,6 +1810,7 @@ object EngineTest {
                   (
                     _,
                     Node.NodeExercises(
+                      _,
                       targetCoid: ContractId,
                       _,
                       _,

@@ -117,6 +117,7 @@ private[dao] trait JdbcLedgerDaoSuite extends AkkaBeforeAndAfterAll with JdbcLed
       targetCid: ContractId,
   ): NodeExercises[NodeId, ContractId, Value[ContractId]] =
     NodeExercises(
+      observers = Set.empty,
       targetCoid = targetCid,
       templateId = someTemplateId,
       choiceId = Ref.Name.assertFromString("choice"),
@@ -175,6 +176,7 @@ private[dao] trait JdbcLedgerDaoSuite extends AkkaBeforeAndAfterAll with JdbcLed
     val txBuilder = TransactionBuilder()
     val exerciseId = txBuilder.add(
       NodeExercises(
+        observers = Set.empty,
         targetCoid = id,
         templateId = someTemplateId,
         choiceId = Ref.ChoiceName.assertFromString("someChoice"),
@@ -508,6 +510,7 @@ private[dao] trait JdbcLedgerDaoSuite extends AkkaBeforeAndAfterAll with JdbcLed
     val txBuilder = TransactionBuilder()
     val archiveNodeId = txBuilder.add(
       NodeExercises(
+        observers = Set.empty,
         targetCoid = contractId,
         templateId = someTemplateId,
         choiceId = Ref.ChoiceName.assertFromString("Archive"),
@@ -517,7 +520,6 @@ private[dao] trait JdbcLedgerDaoSuite extends AkkaBeforeAndAfterAll with JdbcLed
         chosenValue = ValueUnit,
         stakeholders = Set(party),
         signatories = Set(party),
-        controllersDifferFromActors = false,
         children = ImmArray.empty,
         exerciseResult = Some(ValueUnit),
         key = maybeKey.map(k => KeyWithMaintainers(ValueText(k), Set(party)))

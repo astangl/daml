@@ -88,6 +88,7 @@ object Node {
           key = key.map(KeyWithMaintainers.map1(f3)),
         )
       case self @ NodeExercises(
+            _,
             targetCoid,
             _,
             _,
@@ -149,6 +150,7 @@ object Node {
         f2(coid)
         key.foreach(KeyWithMaintainers.foreach1(f3))
       case NodeExercises(
+          observers @ _,
           targetCoid,
           templateId @ _,
           choiceId @ _,
@@ -227,6 +229,7 @@ object Node {
     *     actual validation stage.
     */
   final case class NodeExercises[+Nid, +Cid, +Val](
+      observers: Set[Party], //NICK: the choice observers. In additional to signatories and controllers. -- change order?
       targetCoid: Cid,
       override val templateId: TypeConName,
       choiceId: ChoiceName,
@@ -253,6 +256,7 @@ object Node {
       * apply method enforces it.
       */
     def apply[Nid, Cid, Val](
+        observers: Set[Party],
         targetCoid: Cid,
         templateId: TypeConName,
         choiceId: ChoiceName,
@@ -267,6 +271,7 @@ object Node {
         key: Option[KeyWithMaintainers[Val]],
     ): NodeExercises[Nid, Cid, Val] =
       NodeExercises(
+        observers,
         targetCoid,
         templateId,
         choiceId,
@@ -361,6 +366,7 @@ object Node {
       }
       case ne: NodeExercises[Nothing, Cid, Val] => {
         case NodeExercises(
+            observers @ _, //NICK, pay attention to observers here
             targetCoid2,
             templateId2,
             choiceId2,
