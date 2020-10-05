@@ -229,7 +229,7 @@ object Node {
     *     actual validation stage.
     */
   final case class NodeExercises[+Nid, +Cid, +Val](
-      observers: Set[Party], //NICK: the choice observers. In additional to signatories and controllers. -- change order?
+      observers: Set[Party], //additional choice observers. -- NICK: re-order after signatories
       targetCoid: Cid,
       override val templateId: TypeConName,
       choiceId: ChoiceName,

@@ -886,13 +886,14 @@ private[lf] object SBuiltin {
   }
 
   /** $beginExercise
-    *    :: arg                                           (choice argument)
-    *    -> ContractId arg                                (contract to exercise)
-    *    -> List Party                                    (actors)
-    *    -> List Party                                    (signatories)
-    *    -> List Party                                    (observers)
-    *    -> List Party                                    (choice controllers)
-    *    -> Optional {key: key, maintainers: List Party}  (template key, if present)
+    *    :: arg                                           0 (choice argument)
+    *    -> ContractId arg                                1 (contract to exercise)
+    *    -> List Party                                    2 (actors)
+    *    -> List Party                                    3 (signatories)
+    *    -> List Party                                    4 (contract observers)
+    *    -> List Party                                    5 (choice controllers)
+    *    -> List Party                                    6 (choice observers)
+    *    -> Optional {key: key, maintainers: List Party}  7 (template key, if present)
     *    -> ()
     */
   final case class SBUBeginExercise(
@@ -900,7 +901,7 @@ private[lf] object SBuiltin {
       choiceId: ChoiceName,
       consuming: Boolean,
       byKey: Boolean,
-  ) extends OnLedgerBuiltin(7) {
+  ) extends OnLedgerBuiltin(8) {
 
     override protected final def execute(
         args: util.ArrayList[SValue],
@@ -919,10 +920,10 @@ private[lf] object SBuiltin {
       val sigs = extractParties(args.get(3))
       val contractObs = extractParties(args.get(4))
       val ctrls = extractParties(args.get(5))
+      val observers = extractParties(args.get(6))
 
-      val mbKey = extractOptionalKeyWithMaintainers(args.get(6))
+      val mbKey = extractOptionalKeyWithMaintainers(args.get(7))
       val auth = machine.auth
-      val observers: Set[Party] = Set.empty //NICK, caller must pass
 
       onLedger.ptx = onLedger.ptx
         .beginExercises(
