@@ -319,6 +319,7 @@ decodeChoice LF1.TemplateChoice{..} =
     <*> decodeName ChoiceName templateChoiceName
     <*> pure templateChoiceConsuming
     <*> mayDecode "templateChoiceControllers" templateChoiceControllers decodeExpr
+    <*> mayDecode "templateChoiceObservers" templateChoiceObservers decodeExpr
     <*> decodeName ExprVarName templateChoiceSelfBinder
     <*> mayDecode "templateChoiceArgBinder" templateChoiceArgBinder decodeVarWithType
     <*> mayDecode "templateChoiceRetType" templateChoiceRetType decodeType

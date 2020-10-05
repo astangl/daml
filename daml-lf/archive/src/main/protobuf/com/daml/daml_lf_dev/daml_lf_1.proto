@@ -1191,10 +1191,13 @@ message TemplateChoice {
   bool consuming = 2;
 
   // The controllers of the choice. They have type `List Party` and the
-  // template parameter in scope, but not the choice parameter. All of these
+  // template parameter in scope, but not the choice parameter. All of these //TODO: Is this true for flexible controllers?
   // controllers need to authorize the exercising of this choice (aka
   // conjunctive choice controllers).
   Expr controllers = 3;
+
+  // The (additional) observers of the choice. They have type `List Party`.
+  Expr observers = 11;
 
   // Name to which the choice argument is bound and its type.
   VarWithType arg_binder = 4;

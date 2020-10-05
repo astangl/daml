@@ -883,8 +883,7 @@ private[lf] final class Compiler(
           svar(cidPos),
           svar(actorsPos),
           compile(tmpl.signatories),
-          compile(tmpl.observers),
-          {
+          compile(tmpl.observers), {
             addExprVar(choice.argBinder._1, choiceArgPos)
             compile(choice.controllers)
           },
