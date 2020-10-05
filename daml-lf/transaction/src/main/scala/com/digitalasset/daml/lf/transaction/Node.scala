@@ -366,7 +366,7 @@ object Node {
       }
       case ne: NodeExercises[Nothing, Cid, Val] => {
         case NodeExercises(
-            observers @ _, //NICK, pay attention to observers here
+            observers2,
             targetCoid2,
             templateId2,
             choiceId2,
@@ -384,7 +384,7 @@ object Node {
           import ne._
           targetCoid === targetCoid2 && templateId == templateId2 && choiceId == choiceId2 &&
           consuming == consuming2 && actingParties == actingParties2 && chosenValue === chosenValue2 &&
-          stakeholders == stakeholders2 && signatories == signatories2 &&
+          stakeholders == stakeholders2 && signatories == signatories2 && observers == observers2 &&
           controllersDifferFromActors == controllersDifferFromActors2 &&
           exerciseResult.fold(true)(_ => exerciseResult === exerciseResult2) &&
           key.fold(true)(_ => key === key2)
