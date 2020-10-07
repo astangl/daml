@@ -190,8 +190,8 @@ class Server(
         // TODO[AH] Should we preseve an initial path in uri?
           .withPath(Path./("auth"))
           .withQuery(Query(("claims", claims)))
-        // TODO[AH] Forward cookies
-        val req = HttpRequest(uri = uri)
+        val cookies = ctx.request.header[headers.Cookie]
+        val req = HttpRequest(uri = uri, headers = cookies.toList)
         import AuthJsonProtocol._
         for {
           resp <- Http().singleRequest(req)
