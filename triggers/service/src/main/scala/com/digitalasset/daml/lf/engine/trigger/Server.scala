@@ -102,7 +102,8 @@ class Server(
 
   private def restartTriggers(triggers: Vector[RunningTrigger]): Either[String, Unit] = {
     import cats.implicits._ // needed for traverse
-    triggers.traverse_(t => startTrigger(t.triggerParty, t.triggerName, t.triggerToken, Some(t.triggerInstance)))
+    triggers.traverse_(t =>
+      startTrigger(t.triggerParty, t.triggerName, t.triggerToken, Some(t.triggerInstance)))
   }
 
   private def triggerRunnerName(triggerInstance: UUID): String =
@@ -179,12 +180,14 @@ class Server(
     triggerLog.getOrDefault(uuid, Vector.empty)
 
   // TODO[AH] Define a type for claims
-  private def authorize(claims: String)(implicit ec: ExecutionContext, system: ActorSystem): Directive1[Option[String]] = Directive { inner => ctx =>
+  private def authorize(claims: String)(
+      implicit ec: ExecutionContext,
+      system: ActorSystem): Directive1[Option[String]] = Directive { inner => ctx =>
     authConfig match {
       case NoAuth => inner(Tuple1(None))(ctx)
       case AuthMiddleware(authUri) =>
         val uri = authUri
-          // TODO[AH] Should we preseve an initial path in uri?
+        // TODO[AH] Should we preseve an initial path in uri?
           .withPath(Path./("auth"))
           .withQuery(Query(("claims", claims)))
         // TODO[AH] Forward cookies
@@ -207,7 +210,10 @@ class Server(
               Unmarshal(resp).to[String].flatMap { msg =>
                 logger.error(s"Failed to authorize with middleware ($statusCode): $msg")
                 // TODO[AH] Choose appropriate status code. Is this 401 or 500 or something else?
-                ctx.complete(errorResponse(StatusCodes.InternalServerError, "Failed to authorize with middleware"))
+                ctx.complete(
+                  errorResponse(
+                    StatusCodes.InternalServerError,
+                    "Failed to authorize with middleware"))
               }
           }
         } yield result
@@ -221,16 +227,17 @@ class Server(
         // should be running as.  Returns a UUID for the newly
         // started trigger.
         path("v1" / "start") {
-          entity(as[StartParams]) { params =>
-            // TODO[AH] Why do we need to pass ec, system explicitly? 
-            authorize(s"actAs:${params.party}")(ec, system) { token =>
-              startTrigger(params.party, params.triggerName, token) match {
-                case Left(err) =>
-                  complete(errorResponse(StatusCodes.UnprocessableEntity, err))
-                case Right(triggerInstance) =>
-                  complete(successResponse(triggerInstance))
+          entity(as[StartParams]) {
+            params =>
+              // TODO[AH] Why do we need to pass ec, system explicitly?
+              authorize(s"actAs:${params.party}")(ec, system) { token =>
+                startTrigger(params.party, params.triggerName, token) match {
+                  case Left(err) =>
+                    complete(errorResponse(StatusCodes.UnprocessableEntity, err))
+                  case Right(triggerInstance) =>
+                    complete(successResponse(triggerInstance))
+                }
               }
-            }
           }
         },
         // upload a DAR as a multi-part form request with a single field called
