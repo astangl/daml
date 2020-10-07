@@ -4,19 +4,23 @@
 package com.daml.lf
 package engine.trigger
 
+import akka.actor.ActorSystem
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.scaladsl.adapter._
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.Http.ServerBinding
 import akka.http.scaladsl.model._
+import akka.http.scaladsl.model.Uri.{Path, Query}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
+import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.Materializer
 import akka.util.ByteString
 import spray.json.DefaultJsonProtocol._
 import spray.json._
+import com.daml.oauth.middleware.{JsonProtocol => AuthJsonProtocol, Response => AuthResponse}
 import com.daml.ledger.api.refinements.ApiTypes.Party
 import com.daml.lf.archive.{Dar, DarReader, Decode}
 import com.daml.lf.archive.Reader.ParseError
@@ -173,14 +177,33 @@ class Server(
   private def getTriggerStatus(uuid: UUID): Vector[(LocalDateTime, String)] =
     triggerLog.getOrDefault(uuid, Vector.empty)
 
-  private def authorize(party: Party): Either[String, Option[String]] =
+  private def authorize(party: Party)(implicit ec: ExecutionContext, system: ActorSystem): Future[Option[String]] =
     authConfig match {
-      case NoAuth => Right(None)
-      case AuthMiddleware(uri@_) =>
-        Left(s"not implemented ${party.toString}")
+      case NoAuth => Future(None)
+      case AuthMiddleware(authUri) =>
+        val claims = s"actAs:$party"
+        val uri = authUri
+          // TODO[AH] Should we preseve an initial path in uri?
+          .withPath(Path./("auth"))
+          // TODO[AH] Define a type for claims
+          .withQuery(Query(("claims", claims)))
+        // TODO[AH] Forward cookies
+        val req = HttpRequest(uri = uri)
+        import AuthJsonProtocol._
+        for {
+          resp <- Http().singleRequest(req)
+          auth <- if (resp.status != StatusCodes.OK) {
+            Unmarshal(resp).to[String].flatMap { msg =>
+              Future.failed(new RuntimeException(
+                s"Failed to authorize: (${resp.status}): $msg"))
+            }
+          } else {
+            Unmarshal(resp).to[AuthResponse.Authorize]
+          }
+        } yield Some(auth.accessToken)
     }
 
-  private val route = concat(
+  private def route(implicit ec: ExecutionContext, system: ActorSystem) = concat(
     post {
       concat(
         // Start a new trigger given its identifier and the party it
@@ -190,13 +213,11 @@ class Server(
           entity(as[StartParams]) { params =>
             val triggerInstance = for {
               token <- authorize(params.party)
-              triggerInstance <- startTrigger(params.party, params.triggerName, token)
+              triggerInstance <- Future.fromTry(startTrigger(params.party, params.triggerName, token).left.map(new RuntimeException(_)).toTry)
             } yield triggerInstance
-            triggerInstance match {
-              case Left(err) =>
-                complete(errorResponse(StatusCodes.UnprocessableEntity, err))
-              case Right(triggerInstance) =>
-                complete(successResponse(triggerInstance))
+            onComplete(triggerInstance) {
+              case Success(triggerInstance) => complete(successResponse(triggerInstance))
+              case Failure(err) => complete(errorResponse(StatusCodes.UnprocessableEntity, err.getMessage))
             }
           }
         },
