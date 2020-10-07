@@ -178,52 +178,6 @@ class Server(
   private def getTriggerStatus(uuid: UUID): Vector[(LocalDateTime, String)] =
     triggerLog.getOrDefault(uuid, Vector.empty)
 
-  //private def authorize(party: Party)(implicit ec: ExecutionContext, system: ActorSystem): Future[Option[String]] =
-  //  authConfig match {
-  //    case NoAuth => Future(None)
-  //    case AuthMiddleware(authUri) =>
-  //      val claims = s"actAs:$party"
-  //      val uri = authUri
-  //        // TODO[AH] Should we preseve an initial path in uri?
-  //        .withPath(Path./("auth"))
-  //        // TODO[AH] Define a type for claims
-  //        .withQuery(Query(("claims", claims)))
-  //      // TODO[AH] Forward cookies
-  //      val req = HttpRequest(uri = uri)
-  //      import AuthJsonProtocol._
-  //      for {
-  //        resp <- Http().singleRequest(req)
-  //        auth <- resp.status match {
-  //          case StatusCodes.OK => Unmarshal(resp).to[AuthResponse.Authorize]
-  //          case StatusCodes.Unauthorized =>
-  //            val uri = authUri
-  //              .withPath(Path./("login"))
-  //              .withQuery(Query(("redirect_uri", "http://localhost/TODO"), ("claims", claims)))
-  //            val req = HttpRequest(uri = uri)
-  //            for {
-  //              resp <- Http().singleRequest(req)
-  //              // Redirect to /authorize on authorization server
-  //              resp <- {
-  //                assert(resp.status == StatusCodes.Found)
-  //                val req = HttpRequest(uri = resp.header[Location].get.uri)
-  //                Http().singleRequest(req)
-  //              }
-  //              // Redirect to /cb on middleware
-  //              resp <- {
-  //                assert(resp.status == StatusCodes.Found)
-  //                val req = HttpRequest(uri = resp.header[Location].get.uri)
-  //                Http().singleRequest(req)
-  //              }
-  //          case statusCode =>
-  //            Unmarshal(resp).to[String].flatMap { msg =>
-  //              logger.error(s"Failed to authorize with middleware ($statusCode): $msg")
-  //              // TODO[AH] Define dedicated exception mapping to appropriate status code. (Maybe 500?)
-  //              Future.failed(new RuntimeException("Failed to authorize with middleware"))
-  //            }
-  //        }
-  //      } yield Some(auth.accessToken)
-  //  }
-
   // TODO[AH] Define a type for claims
   private def authorize(claims: String)(implicit ec: ExecutionContext, system: ActorSystem): Directive1[Option[String]] = Directive { inner => ctx =>
     authConfig match {
@@ -243,6 +197,12 @@ class Server(
               Unmarshal(resp).to[AuthResponse.Authorize].flatMap { auth =>
                 inner(Tuple1(Some(auth.accessToken)))(ctx)
               }
+            case StatusCodes.Unauthorized =>
+              val uri = authUri
+                .withPath(Path./("login"))
+                // TODO[AH]: Define redirect URI
+                .withQuery(Query(("redirect_uri", "http://localhost/TODO"), ("claims", claims)))
+              ctx.redirect(uri, StatusCodes.Found)
             case statusCode =>
               Unmarshal(resp).to[String].flatMap { msg =>
                 logger.error(s"Failed to authorize with middleware ($statusCode): $msg")
