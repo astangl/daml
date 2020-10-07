@@ -74,6 +74,7 @@ object Server extends StrictLogging {
             complete(
               Response
                 .Authorize(accessToken = token.accessToken, refreshToken = token.refreshToken))
+          // TODO[AH] Include a `WWW-Authenticate` header.
           case _ => complete(StatusCodes.Unauthorized)
         }
       }
