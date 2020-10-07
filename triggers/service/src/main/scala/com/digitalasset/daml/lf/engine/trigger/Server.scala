@@ -44,6 +44,7 @@ import java.util.zip.ZipInputStream
 import java.time.LocalDateTime
 
 class Server(
+    authConfig: AuthConfig,
     ledgerConfig: LedgerConfig,
     restartConfig: TriggerRestartConfig,
     triggerDao: RunningTriggerDao)(
@@ -96,7 +97,7 @@ class Server(
 
   private def restartTriggers(triggers: Vector[RunningTrigger]): Either[String, Unit] = {
     import cats.implicits._ // needed for traverse
-    triggers.traverse_(t => startTrigger(t.triggerParty, t.triggerName, Some(t.triggerInstance)))
+    triggers.traverse_(t => startTrigger(t.triggerParty, t.triggerName, t.triggerToken, Some(t.triggerInstance)))
   }
 
   private def triggerRunnerName(triggerInstance: UUID): String =
@@ -110,6 +111,7 @@ class Server(
   private def startTrigger(
       party: Party,
       triggerName: Identifier,
+      token: Option[String],
       existingInstance: Option[UUID] = None): Either[String, JsValue] = {
     for {
       trigger <- Trigger.fromIdentifier(compiledPackages, triggerName)
@@ -117,7 +119,7 @@ class Server(
         case None =>
           val newInstance = UUID.randomUUID
           triggerDao
-            .addRunningTrigger(RunningTrigger(newInstance, triggerName, party))
+            .addRunningTrigger(RunningTrigger(newInstance, triggerName, party, token))
             .map(_ => newInstance)
         case Some(instance) => Right(instance)
       }
@@ -171,6 +173,13 @@ class Server(
   private def getTriggerStatus(uuid: UUID): Vector[(LocalDateTime, String)] =
     triggerLog.getOrDefault(uuid, Vector.empty)
 
+  private def authorize(party: Party): Either[String, Option[String]] =
+    authConfig match {
+      case NoAuth => Right(None)
+      case AuthMiddleware(uri@_) =>
+        Left(s"not implemented ${party.toString}")
+    }
+
   private val route = concat(
     post {
       concat(
@@ -179,7 +188,11 @@ class Server(
         // started trigger.
         path("v1" / "start") {
           entity(as[StartParams]) { params =>
-            startTrigger(params.party, params.triggerName) match {
+            val triggerInstance = for {
+              token <- authorize(params.party)
+              triggerInstance <- startTrigger(params.party, params.triggerName, token)
+            } yield triggerInstance
+            triggerInstance match {
               case Left(err) =>
                 complete(errorResponse(StatusCodes.UnprocessableEntity, err))
               case Right(triggerInstance) =>
@@ -265,6 +278,7 @@ object Server {
   def apply(
       host: String,
       port: Int,
+      authConfig: AuthConfig,
       ledgerConfig: LedgerConfig,
       restartConfig: TriggerRestartConfig,
       initialDar: Option[Dar[(PackageId, DamlLf.ArchivePayload)]],
@@ -299,11 +313,11 @@ object Server {
     val (dao, server): (RunningTriggerDao, Server) = jdbcConfig match {
       case None =>
         val dao = InMemoryTriggerDao()
-        val server = new Server(ledgerConfig, restartConfig, dao)
+        val server = new Server(authConfig, ledgerConfig, restartConfig, dao)
         (dao, server)
       case Some(c) =>
         val dao = DbTriggerDao(c)
-        val server = new Server(ledgerConfig, restartConfig, dao)
+        val server = new Server(authConfig, ledgerConfig, restartConfig, dao)
         val recovery: Either[String, Unit] = for {
           _ <- dao.initialize
           packages <- dao.readPackages
