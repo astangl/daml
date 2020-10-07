@@ -13,6 +13,7 @@ import akka.http.scaladsl.Http.ServerBinding
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.Uri.{Path, Query}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import akka.http.scaladsl.server.{Directive, Directive1}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.unmarshalling.Unmarshal
@@ -177,31 +178,81 @@ class Server(
   private def getTriggerStatus(uuid: UUID): Vector[(LocalDateTime, String)] =
     triggerLog.getOrDefault(uuid, Vector.empty)
 
-  private def authorize(party: Party)(implicit ec: ExecutionContext, system: ActorSystem): Future[Option[String]] =
+  //private def authorize(party: Party)(implicit ec: ExecutionContext, system: ActorSystem): Future[Option[String]] =
+  //  authConfig match {
+  //    case NoAuth => Future(None)
+  //    case AuthMiddleware(authUri) =>
+  //      val claims = s"actAs:$party"
+  //      val uri = authUri
+  //        // TODO[AH] Should we preseve an initial path in uri?
+  //        .withPath(Path./("auth"))
+  //        // TODO[AH] Define a type for claims
+  //        .withQuery(Query(("claims", claims)))
+  //      // TODO[AH] Forward cookies
+  //      val req = HttpRequest(uri = uri)
+  //      import AuthJsonProtocol._
+  //      for {
+  //        resp <- Http().singleRequest(req)
+  //        auth <- resp.status match {
+  //          case StatusCodes.OK => Unmarshal(resp).to[AuthResponse.Authorize]
+  //          case StatusCodes.Unauthorized =>
+  //            val uri = authUri
+  //              .withPath(Path./("login"))
+  //              .withQuery(Query(("redirect_uri", "http://localhost/TODO"), ("claims", claims)))
+  //            val req = HttpRequest(uri = uri)
+  //            for {
+  //              resp <- Http().singleRequest(req)
+  //              // Redirect to /authorize on authorization server
+  //              resp <- {
+  //                assert(resp.status == StatusCodes.Found)
+  //                val req = HttpRequest(uri = resp.header[Location].get.uri)
+  //                Http().singleRequest(req)
+  //              }
+  //              // Redirect to /cb on middleware
+  //              resp <- {
+  //                assert(resp.status == StatusCodes.Found)
+  //                val req = HttpRequest(uri = resp.header[Location].get.uri)
+  //                Http().singleRequest(req)
+  //              }
+  //          case statusCode =>
+  //            Unmarshal(resp).to[String].flatMap { msg =>
+  //              logger.error(s"Failed to authorize with middleware ($statusCode): $msg")
+  //              // TODO[AH] Define dedicated exception mapping to appropriate status code. (Maybe 500?)
+  //              Future.failed(new RuntimeException("Failed to authorize with middleware"))
+  //            }
+  //        }
+  //      } yield Some(auth.accessToken)
+  //  }
+
+  // TODO[AH] Define a type for claims
+  private def authorize(claims: String)(implicit ec: ExecutionContext, system: ActorSystem): Directive1[Option[String]] = Directive { inner => ctx =>
     authConfig match {
-      case NoAuth => Future(None)
+      case NoAuth => inner(Tuple1(None))(ctx)
       case AuthMiddleware(authUri) =>
-        val claims = s"actAs:$party"
         val uri = authUri
           // TODO[AH] Should we preseve an initial path in uri?
           .withPath(Path./("auth"))
-          // TODO[AH] Define a type for claims
           .withQuery(Query(("claims", claims)))
         // TODO[AH] Forward cookies
         val req = HttpRequest(uri = uri)
         import AuthJsonProtocol._
         for {
           resp <- Http().singleRequest(req)
-          auth <- if (resp.status != StatusCodes.OK) {
-            Unmarshal(resp).to[String].flatMap { msg =>
-              Future.failed(new RuntimeException(
-                s"Failed to authorize: (${resp.status}): $msg"))
-            }
-          } else {
-            Unmarshal(resp).to[AuthResponse.Authorize]
+          result <- resp.status match {
+            case StatusCodes.OK =>
+              Unmarshal(resp).to[AuthResponse.Authorize].flatMap { auth =>
+                inner(Tuple1(Some(auth.accessToken)))(ctx)
+              }
+            case statusCode =>
+              Unmarshal(resp).to[String].flatMap { msg =>
+                logger.error(s"Failed to authorize with middleware ($statusCode): $msg")
+                // TODO[AH] Choose appropriate status code. Is this 401 or 500 or something else?
+                ctx.complete(errorResponse(StatusCodes.InternalServerError, "Failed to authorize with middleware"))
+              }
           }
-        } yield Some(auth.accessToken)
+        } yield result
     }
+  }
 
   private def route(implicit ec: ExecutionContext, system: ActorSystem) = concat(
     post {
@@ -211,13 +262,14 @@ class Server(
         // started trigger.
         path("v1" / "start") {
           entity(as[StartParams]) { params =>
-            val triggerInstance = for {
-              token <- authorize(params.party)
-              triggerInstance <- Future.fromTry(startTrigger(params.party, params.triggerName, token).left.map(new RuntimeException(_)).toTry)
-            } yield triggerInstance
-            onComplete(triggerInstance) {
-              case Success(triggerInstance) => complete(successResponse(triggerInstance))
-              case Failure(err) => complete(errorResponse(StatusCodes.UnprocessableEntity, err.getMessage))
+            // TODO[AH] Why do we need to pass ec, system explicitly? 
+            authorize(s"actAs:${params.party}")(ec, system) { token =>
+              startTrigger(params.party, params.triggerName, token) match {
+                case Left(err) =>
+                  complete(errorResponse(StatusCodes.UnprocessableEntity, err))
+                case Right(triggerInstance) =>
+                  complete(successResponse(triggerInstance))
+              }
             }
           }
         },
