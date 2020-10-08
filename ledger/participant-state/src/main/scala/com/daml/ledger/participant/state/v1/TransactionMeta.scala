@@ -5,6 +5,7 @@ package com.daml.ledger.participant.state.v1
 
 import com.daml.lf.crypto
 import com.daml.lf.data.{ImmArray, Ref, Time}
+import com.github.ghik.silencer.silent
 
 /** Meta-data of a transaction visible to all parties that can see a part of
   * the transaction.
@@ -32,6 +33,7 @@ import com.daml.lf.data.{ImmArray, Ref, Time}
   * @param optByKeyNodes: the list of each ID of the fetch and exercise nodes that correspond
   *   to a fetch-by-key, lookup-by-key, or exercise-by-key command. Undefined is not known.
   */
+@silent("optByKeyNodes in class TransactionMeta is deprecated")
 final case class TransactionMeta(
     ledgerEffectiveTime: Time.Timestamp,
     workflowId: Option[WorkflowId],
@@ -39,5 +41,6 @@ final case class TransactionMeta(
     submissionSeed: crypto.Hash,
     optUsedPackages: Option[Set[Ref.PackageId]],
     optNodeSeeds: Option[ImmArray[(NodeId, crypto.Hash)]],
-    optByKeyNodes: Option[ImmArray[NodeId]]
+    @deprecated("use `byKey` method in transaction node", since = "1.7.0")
+    optByKeyNodes: Option[ImmArray[NodeId]],
 )
